@@ -18,6 +18,9 @@ class DiscordShuffleGame:
         await channel.send('Botが起動しました。\nゲームに参加するには、「参加」と送信して下さい。\nまたゲームを開始するには、「開始」と送信して下さい。')
 
     async def start(self, message):
+        if message.channel != self.channel:
+            return
+
         if message.content == '参加':
             user = message.author
 
@@ -29,14 +32,10 @@ class DiscordShuffleGame:
 
         elif message.content == '開始':
             self.status = STATUS.RUNNING
-            
-            print(self.users)
             await self.channel.send(f'開始します。')
 
             shuffler = PairShuffler(self.users)
             self.pairs = shuffler.shuffle()
-            
-            print(self.pairs)
 
             for user, target in self.pairs:
                 guild = user.guild
