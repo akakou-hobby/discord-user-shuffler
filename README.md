@@ -1,0 +1,2 @@
+# discord-user-shuffler
+Discordのユーザをシャッフルします。
