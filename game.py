@@ -17,6 +17,7 @@ class GameState:
         self.pairs = []
         self.channels = []
         self.votes = []
+
         self.main_channel = None
         self.client = None
 
@@ -125,8 +126,13 @@ class GameVotePhase(GamePhase):
 
 
         if len(state.votes) == len(state.users):
-            await state.main_channel.send('投票が終了しました。')
+            await state.main_channel.send('投票が終了しました。\n\n投票内容：')
 
+            for user, target in state.votes:
+                await state.main_channel.send(f'{user.name} -> {target.name}')
+            
+            sys.exit()
+            
 
 class Game:
     def __init__(self):
