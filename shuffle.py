@@ -4,7 +4,7 @@ import copy
 
 class PairShuffler:
     def __init__(self, elements=[]):
-        self.elements = elements
+        self.elements = copy.copy(elements)
         self.pairs = []
 
     def shuffle_without_check(self):
