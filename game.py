@@ -1,6 +1,9 @@
 from shuffle import PairShuffler
 import discord
 
+import sys
+
+
 class STATUS:
     READYING = 'starting'
     RUNNING = 'runnning'
@@ -13,6 +16,7 @@ class GameState:
         self.pairs = []
         self.channels = []
         self.main_channel = None
+        self.client = None
 
 state = GameState()
 
@@ -54,19 +58,27 @@ class GameReadyPhase(GamePhase):
 
         for user, target in state.pairs:
             guild = user.guild
+            channel_name = f'shuffler-{user}'
             
-            role = await guild.create_role(name=f'shuffler-{user}')
-            await user.add_roles(role)
+            def search_channel(c):
+                result = c.name == channel_name.replace('#', '')
+                return result
 
-            overwrites = {
-                role: discord.PermissionOverwrite(read_messages=True),
-                guild.default_role: discord.PermissionOverwrite(read_messages=False),
-                guild.me: discord.PermissionOverwrite(read_messages=True)
-            }
+            channel = next(filter(search_channel, guild.channels), None)
+
+            if not channel:
+                role = await guild.create_role(name=channel_name)
+                await user.add_roles(role)
+
+                overwrites = {
+                    role: discord.PermissionOverwrite(read_messages=True),
+                    guild.default_role: discord.PermissionOverwrite(read_messages=False),
+                    guild.me: discord.PermissionOverwrite(read_messages=True)
+                }
+                
+                channel = await guild.create_text_channel(channel_name, type=discord.ChannelType.text, overwrites=overwrites)
             
-            channel = await guild.create_text_channel(f'shuffler-{user}', type=discord.ChannelType.text, overwrites=overwrites)
             state.channels.append(channel)
-
             await channel.send(f'あなたがなりすます対象は、{target.name}です。\nなりすます際は、このチャンネルにメッセージを送信して下さい。')
         
         state.status = STATUS.RUNNING
@@ -81,6 +93,8 @@ class GameRunPhase(GamePhase):
 
             for user, target in state.pairs:
                 await state.main_channel.send(f'{user} -> {target}')
+            
+            sys.exit()
                 
         elif message.channel in state.channels:
             filtered_pair = filter(lambda pair: pair[0] == message.author, state.pairs)
@@ -92,8 +106,9 @@ class Game:
         self.ready = GameReadyPhase()
         self.run = GameRunPhase()
 
-    async def setup(self, channel):
+    async def setup(self, channel, client):
         state.main_channel = channel
+        state.client = client
         await channel.send('Botが起動しました。\nゲームに参加するには、「参加」と送信して下さい。\nまたゲームを開始するには、「開始」と送信して下さい。')
 
     async def next(self, message):
