@@ -67,8 +67,7 @@ class GameReadyPhase(GamePhase):
             channel = await guild.create_text_channel(f'shuffler-{user}', type=discord.ChannelType.text, overwrites=overwrites)
             state.channels.append(channel)
 
-            await channel.send(f'あなたがなりすます対象は、{target.name}です。')
-            await channel.send(f'なりすます際は、このチャンネルにメッセージを送信して下さい。')
+            await channel.send(f'あなたがなりすます対象は、{target.name}です。\nなりすます際は、このチャンネルにメッセージを送信して下さい。')
         
         state.status = STATUS.RUNNING
     
@@ -84,7 +83,9 @@ class GameRunPhase(GamePhase):
                 await state.main_channel.send(f'{user} -> {target}')
                 
         elif message.channel in state.channels:
-            await state.main_channel.send(f'{message.author.name}\n{message.content}')
+            filtered_pair = filter(lambda pair: pair[0] == message.author, state.pairs)
+            _, target = next(filtered_pair)
+            await state.main_channel.send(f'{target.name}\n> {message.content}')
 
 class Game:
     def __init__(self):
