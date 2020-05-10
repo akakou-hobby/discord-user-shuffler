@@ -6,7 +6,8 @@ import sys
 
 class STATUS:
     READYING = 'starting'
-    RUNNING = 'runnning'
+    SPOOFING = 'spoofing'
+    VOTING = 'voting'
 
 class GameState:
     def __init__(self):
@@ -15,6 +16,7 @@ class GameState:
         
         self.pairs = []
         self.channels = []
+        self.votes = []
         self.main_channel = None
         self.client = None
 
@@ -81,30 +83,56 @@ class GameReadyPhase(GamePhase):
             state.channels.append(channel)
             await channel.send(f'あなたがなりすます対象は、{target.name}です。\nなりすます際は、このチャンネルにメッセージを送信して下さい。')
         
-        state.status = STATUS.RUNNING
+        await state.main_channel.send(f'議論が終わり次第、「投票」を送信して下さい。')
+        state.status = STATUS.SPOOFING
     
-class GameRunPhase(GamePhase):
+class GameSpoofPhase(GamePhase):
     def __init__(self):
         super().__init__()
     
     async def run(self, message):
-        if message.channel == state.main_channel and message.content == '終了':
-            await state.main_channel.send(f'終了しました。\n\n結果')
-
-            for user, target in state.pairs:
-                await state.main_channel.send(f'{user} -> {target}')
+        if message.channel == state.main_channel and message.content == '投票':
+            await state.main_channel.send(f'議論を終了しました。\n投票に入ります。')
             
-            sys.exit()
-                
+            for channel in state.channels:
+                await channel.send('本人だと思う人の名前を送信して下さい。\n\n選択肢：')
+
+                for user in state.users:
+                    await channel.send(f'「{user.name}」')
+            
+            state.status = STATUS.VOTING
+            
         elif message.channel in state.channels:
             filtered_pair = filter(lambda pair: pair[0] == message.author, state.pairs)
             _, target = next(filtered_pair)
             await state.main_channel.send(f'{target.name}\n> {message.content}')
 
+class GameVotePhase(GamePhase):
+    def __init__(self):
+        super().__init__()
+    
+    async def run(self, message):        
+        if message.channel not in state.channels:
+            return
+        
+        if next(filter(lambda vote: message.author == vote[0], state.votes), None):
+            await message.channel.send('既に投票されています。')
+            return
+
+        user = next(filter(lambda user: message.content == user.name, state.users), None)
+        state.votes.append((message.author, user))
+        await message.channel.send('投票しました。')
+
+
+        if len(state.votes) == len(state.users):
+            await state.main_channel.send('投票が終了しました。')
+
+
 class Game:
     def __init__(self):
         self.ready = GameReadyPhase()
-        self.run = GameRunPhase()
+        self.spoof = GameSpoofPhase()
+        self.vote = GameVotePhase()
 
     async def setup(self, channel, client):
         state.main_channel = channel
@@ -114,5 +142,7 @@ class Game:
     async def next(self, message):
         if state.status == STATUS.READYING:
             await self.ready.run(message)
-        elif state.status == STATUS.RUNNING:
-            await self.run.run(message)
+        elif state.status == STATUS.SPOOFING:
+            await self.spoof.run(message)
+        elif state.status == STATUS.VOTING:
+            await self.vote.run(message)
