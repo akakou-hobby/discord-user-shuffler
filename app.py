@@ -3,7 +3,7 @@ import dotenv
 
 import os
 
-from game import DiscordShuffleGame
+from game import Game
 
 dotenv.load_dotenv('.env')
 
@@ -12,12 +12,12 @@ channel_id = os.getenv('CHANNEL')
 channel_id = int(channel_id)
 
 client = discord.Client()
-game = DiscordShuffleGame()
+game = Game()
 
 @client.event
 async def on_ready():
     channel = client.get_channel(channel_id)
-    await game.ready(channel)
+    await game.setup(channel)
 
 @client.event
 async def on_message(message):
