@@ -29,9 +29,14 @@ class PairShuffler:
     def shuffle(self):
         has_inviled_pair = True
 
+        element = random.choice(self.elements)
+        self.elements.remove(element)
+
         while has_inviled_pair:
             self.shuffle_without_check()
             has_inviled_pair = self.has_inviled_pair()
+        
+        self.pairs.append((element, element))
 
         return self.pairs
 
