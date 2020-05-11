@@ -1,5 +1,5 @@
 from shuffle import UserPairShaffler
-from vote import ScoreCalculator
+from score import ScoreCalculator
 from user import GameUser, GameUserRepository
 
 import discord
