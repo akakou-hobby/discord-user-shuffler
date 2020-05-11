@@ -7,12 +7,13 @@ class GameUser:
         self.is_answer = False
         self.score = 0
 
+
 class GameUserRepository():
     users = []
 
     def add(self, user):
         self.users.append(user)
-    
+
     def update(self, user):
         for index, _user in enumerate(self.users):
             if _user.member == user.member:
@@ -39,5 +40,5 @@ class GameUserRepository():
                 continue
 
             return user
-        
+
         return None

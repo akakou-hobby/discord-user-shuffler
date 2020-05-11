@@ -6,7 +6,7 @@ class ScoreCalculator:
     def __init__(self, user_repo):
         self.user_repo = user_repo
         self.results = []
-    
+
     def calc(self):
         for user in self.user_repo.users:
             self.user_repo.update(user)
@@ -22,4 +22,3 @@ class ScoreCalculator:
 
         self.result = sorted(self.user_repo.users, key=lambda x: x.score)[::-1]
         return self.result
-

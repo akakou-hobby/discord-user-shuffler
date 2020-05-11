@@ -12,6 +12,7 @@ class STATUS:
     SPOOFING = 'spoofing'
     VOTING = 'voting'
 
+
 class GameState:
     def __init__(self):
         self.user_repo = GameUserRepository()
@@ -20,7 +21,9 @@ class GameState:
         self.main_channel = None
         self.client = None
 
+
 state = GameState()
+
 
 class GamePhase:
     def __init__(self):
@@ -28,6 +31,7 @@ class GamePhase:
 
     async def run(self, message):
         raise NotImplementedError
+
 
 class GameReadyPhase(GamePhase):
     def __init__(self):
@@ -53,7 +57,7 @@ class GameReadyPhase(GamePhase):
         else:
             await state.main_channel.send(f'{member.name}さんは既に参加しています。')
 
-    async def start(self, message):        
+    async def start(self, message):
         await state.main_channel.send(f'開始します。')
 
         shuffler = UserPairShaffler(state.user_repo)
@@ -62,8 +66,9 @@ class GameReadyPhase(GamePhase):
         for user in state.user_repo.users:
             guild = user.member.guild
             channel_name = f'shuffler-{user.member.name}'
-            
-            channel = next(filter(lambda channel: channel.name == channel_name, guild.channels), None)
+
+            channel = next(filter(lambda channel: channel.name ==
+                                  channel_name, guild.channels), None)
 
             if not channel:
                 role = await guild.create_role(name=channel_name)
@@ -74,27 +79,28 @@ class GameReadyPhase(GamePhase):
                     guild.default_role: discord.PermissionOverwrite(read_messages=False),
                     guild.me: discord.PermissionOverwrite(read_messages=True)
                 }
-                
+
                 channel = await guild.create_text_channel(channel_name, type=discord.ChannelType.text, overwrites=overwrites)
-            
+
             user.channel = channel
             state.user_repo.update(user)
 
             await channel.send(f'あなたがなりすます対象は、{user.spoofed.name}です。\nなりすます際は、このチャンネルにメッセージを送信して下さい。')
-        
+
         await state.main_channel.send(f'議論が終わり次第、「投票」を送信して下さい。')
         state.status = STATUS.SPOOFING
-    
+
+
 class GameSpoofPhase(GamePhase):
     def __init__(self):
         super().__init__()
-    
+
     async def run(self, message):
         user = state.user_repo.get(channel=message.channel)
 
         if message.channel == state.main_channel and message.content == '投票':
             await state.main_channel.send(f'議論を終了しました。\n投票に入ります。')
-            
+
             for user in state.user_repo.users:
                 if user.is_answer:
                     continue
@@ -105,21 +111,22 @@ class GameSpoofPhase(GamePhase):
                 for _user in state.user_repo.users:
                     if _user == user:
                         continue
-                        
+
                     await channel.send(f'「{_user.member.name}」')
-            
+
             state.status = STATUS.VOTING
-            
+
         elif user:
             spoofed = user.spoofed
             for _user in state.user_repo.users:
                 await _user.channel.send(f'{spoofed.name}\n> {message.content}')
 
+
 class GameVotePhase(GamePhase):
     def __init__(self):
         super().__init__()
-    
-    async def run(self, message):        
+
+    async def run(self, message):
         if not state.user_repo.get(channel=message.channel):
             return
 
@@ -132,7 +139,6 @@ class GameVotePhase(GamePhase):
         if user.vote:
             await message.channel.send('既に投票されています。')
             return
-
 
         vote_user = state.user_repo.get(name=message.content)
         if not vote_user:
@@ -162,10 +168,10 @@ class GameVotePhase(GamePhase):
             results = calculator.calc()
 
             for index, user in enumerate(results):
-                await state.main_channel.send(f'{index + 1}. {user.member.name}: {int(user.score)}')                 
+                await state.main_channel.send(f'{index + 1}. {user.member.name}: {int(user.score)}')
 
             sys.exit()
-            
+
 
 class Game:
     def __init__(self):
