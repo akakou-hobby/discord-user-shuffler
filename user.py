@@ -5,6 +5,7 @@ class GameUser:
         self.vote = None
         self.spoofed = None
         self.is_answer = False
+        self.score = 0
 
 class GameUserRepository():
     users = []

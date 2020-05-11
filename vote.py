@@ -3,33 +3,23 @@ import copy
 
 
 class ScoreCalculator:
-    def __init__(self, elements):
-        self.elements = copy.copy(elements)
+    def __init__(self, user_repo):
+        self.user_repo = user_repo
         self.results = []
-
-        for element in elements:
-            self.results.append([element, 0])
     
-    def calc(self, answers, correct_answer):
-        for user, target in answers:
-            for index, value in enumerate(self.results):
-                if value[0] == target:
-                    if target == correct_answer:
-                        self.results[index][1] += 1.5
-                    else:
-                        self.results[index][1] += 1
+    def calc(self):
+        for user in self.user_repo.users:
+            self.user_repo.update(user)
+            vote_user = self.user_repo.get(member=user.vote)
 
-                if target == correct_answer and value[0] == user:
-                    self.results[index][1] += len(self.elements) / 2
+            if vote_user.is_answer:
+                user.score += 1
+                vote_user.score += 1.5
+            else:
+                vote_user.score += 1
 
-        self.results.sort(key=lambda x: x[1])
-        self.results.reverse()
+            self.user_repo.update(vote_user)
 
-        return self.results
-    
-if __name__=='__main__':
-    elements = ['1', '2', '3', '4', '5']
-    answers = [('1', '2'), ('3', '2'), ('5', '3')]
+        self.result = sorted(self.user_repo.users, key=lambda x: x.score)[::-1]
+        return self.result
 
-    v = ScoreCalculator(elements)
-    print(v.calc(answers, '3'))

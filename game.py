@@ -84,7 +84,7 @@ class GameReadyPhase(GamePhase):
             user.channel = channel
             state.user_repo.update(user)
 
-            await channel.send(f'あなたがなりすます対象は、{user.spoofed.member.name}です。\nなりすます際は、このチャンネルにメッセージを送信して下さい。')
+            await channel.send(f'あなたがなりすます対象は、{user.spoofed.name}です。\nなりすます際は、このチャンネルにメッセージを送信して下さい。')
         
         await state.main_channel.send(f'議論が終わり次第、「投票」を送信して下さい。')
         state.status = STATUS.SPOOFING
@@ -110,7 +110,7 @@ class GameSpoofPhase(GamePhase):
             
         elif user:
             spoofed = user.spoofed
-            await state.main_channel.send(f'{spoofed.member.name}\n> {message.content}')
+            await state.main_channel.send(f'{spoofed.name}\n> {message.content}')
 
 class GameVotePhase(GamePhase):
     def __init__(self):
@@ -130,28 +130,29 @@ class GameVotePhase(GamePhase):
         if not vote:
             return
 
-        user.vote = vote
+        user.vote = vote.member
         state.user_repo.update(user)
 
         await message.channel.send('投票しました。')
 
-        # if len(state.votes) == len(state.users):
-            # await state.main_channel.send('投票が終了しました。\n\n投票内容：')
+        # vote_num = len(filter(lambda user: user.vote, state.user_repo.users))
+        vote_num = sum(bool(user.vote) for user in state.user_repo.users)
 
-            # for user, target in state.votes:
-            #     await state.main_channel.send(f'{user.name} -> {target.name}')
+        if vote_num == len(state.user_repo.users):
+            await state.main_channel.send('投票が終了しました。\n\n投票内容：')
 
-            # await state.main_channel.send('スコア：')
+            for user in state.user_repo.users:
+                await state.main_channel.send(f'{user.member.name} -> {user.vote.name}')
 
-            # calculator = ScoreCalculator(state.users)
-            # results = calculator.calc(state.votes, state.correct_answer)
+            await state.main_channel.send('スコア：')
 
-            # for index, result in enumerate(results):
-            #     user, score = result
-            #     await state.main_channel.send(f'{index}. {user.name}: {score}')
-                 
+            calculator = ScoreCalculator(state.user_repo)
+            results = calculator.calc()
 
-            # sys.exit()
+            for index, user in enumerate(results):
+                await state.main_channel.send(f'{index + 1}. {user.member.name}: {int(user.score)}')                 
+
+            sys.exit()
             
 
 class Game:
