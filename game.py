@@ -62,7 +62,7 @@ class GameReadyPhase(GamePhase):
         for user in state.user_repo.users:
             guild = user.member.guild
             channel_name = f'shuffler-{user.member.name}'
-  
+            
             channel = next(filter(lambda channel: channel.name == channel_name, guild.channels), None)
 
             if not channel:
@@ -112,7 +112,8 @@ class GameSpoofPhase(GamePhase):
             
         elif user:
             spoofed = user.spoofed
-            await state.main_channel.send(f'{spoofed.name}\n> {message.content}')
+            for _user in state.user_repo.users:
+                await _user.channel.send(f'{spoofed.name}\n> {message.content}')
 
 class GameVotePhase(GamePhase):
     def __init__(self):
