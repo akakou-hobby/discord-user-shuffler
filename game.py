@@ -58,6 +58,10 @@ class GameReadyPhase(GamePhase):
             await state.main_channel.send(f'{member.name}さんは既に参加しています。')
 
     async def start(self, message):
+        if len(state.user_repo.users) < 4:
+            await state.main_channel.send(f'人数が足りません。4人以上集まったら、「開始」を送信して下さい。')
+            return
+
         await state.main_channel.send(f'開始します。')
 
         shuffler = UserPairShaffler(state.user_repo)
@@ -109,7 +113,7 @@ class GameSpoofPhase(GamePhase):
                 await channel.send('本人だと思う人の名前を送信して下さい。\n\n選択肢：')
 
                 for _user in state.user_repo.users:
-                    if _user == user:
+                    if _user == user or _user.member == user.spoofed:
                         continue
 
                     await channel.send(f'「{_user.member.name}」')
@@ -148,6 +152,11 @@ class GameVotePhase(GamePhase):
             await message.channel.send('自分に投票することはできません。')
             return
 
+        if vote_user.member == user.spoofed:
+            await message.channel.send('自分のなりすまし先に投票することはできません。')
+            return
+        
+        
         user.vote = vote_user.member
         state.user_repo.update(user)
 
