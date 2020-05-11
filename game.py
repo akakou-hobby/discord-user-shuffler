@@ -58,6 +58,10 @@ class GameReadyPhase(GamePhase):
             await state.main_channel.send(f'{member.name}さんは既に参加しています。')
 
     async def start(self, message):
+        if len(state.user_repo.users) < 4:
+            await state.main_channel.send(f'人数が足りません。4人以上集まったら、「開始」を送信して下さい。')
+            return
+
         await state.main_channel.send(f'開始します。')
 
         shuffler = UserPairShaffler(state.user_repo)
