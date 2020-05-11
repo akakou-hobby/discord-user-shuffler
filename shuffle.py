@@ -1,6 +1,7 @@
 import random
 import copy
 
+from user import GameUser
 
 class PairShuffler:
     def __init__(self, elements=[]):
@@ -39,6 +40,34 @@ class PairShuffler:
         self.pairs.append((element, element))
 
         return self.pairs, element
+
+class UserPairShaffler:
+    def __init__(self, user_repo):
+        self.user_repo = user_repo
+        altenatives = list(range(len(user_repo.users)))
+        self.shuffler = PairShuffler(altenatives)
+    
+    def shuffle(self):
+        pairs, _ = self.shuffler.shuffle()
+
+        for pair in pairs:
+            user_index = pair[0]
+            user = self.user_repo.users[user_index]
+
+            spoofed_index = pair[1]
+            spoofed = self.user_repo.users[spoofed_index]
+
+            if user == spoofed:
+                user.is_answer = True
+            
+            user.spoofed = spoofed
+            self.user_repo.update(user)
+
+
+
+
+
+    
 
 if __name__=='__main__':
     elements = ['1', '2', '3', '4', '5']
