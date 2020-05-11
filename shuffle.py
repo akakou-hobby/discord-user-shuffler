@@ -55,19 +55,15 @@ class UserPairShaffler:
             user = self.user_repo.users[user_index]
 
             spoofed_index = pair[1]
-            spoofed = self.user_repo.users[spoofed_index]
+            spoofed = self.user_repo.users[spoofed_index].member
 
-            if user == spoofed:
+            if user.member == spoofed:
                 user.is_answer = True
             
             user.spoofed = spoofed
             self.user_repo.update(user)
 
 
-
-
-
-    
 
 if __name__=='__main__':
     elements = ['1', '2', '3', '4', '5']
