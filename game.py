@@ -1,5 +1,6 @@
-from shuffle import PairShuffler
+from shuffle import UserPairShaffler
 from vote import ScoreCalculator
+from user import GameUser, GameUserRepository
 
 import discord
 
@@ -13,16 +14,11 @@ class STATUS:
 
 class GameState:
     def __init__(self):
-        self.users = []
-        self.status = STATUS.READYING
-        
-        self.pairs = []
-        self.channels = []
-        self.votes = []
+        self.user_repo = GameUserRepository()
 
+        self.status = STATUS.READYING
         self.main_channel = None
         self.client = None
-        self.correct_answer = None
 
 state = GameState()
 
@@ -48,33 +44,34 @@ class GameReadyPhase(GamePhase):
             await self.start(message)
 
     async def join(self, message):
-        user = message.author
+        member = message.author
 
-        if user not in state.users:
-            state.users.append(user)
-            await state.main_channel.send(f'{user.name}さんを追加しました。')
+        if not state.user_repo.get(member=member):
+            user = GameUser(member)
+            state.user_repo.add(user)
+            await state.main_channel.send(f'{member.name}さんを追加しました。')
         else:
-            await state.main_channel.send(f'{user.name}さんは既に参加しています。')
+            await state.main_channel.send(f'{member.name}さんは既に参加しています。')
 
     async def start(self, message):        
         await state.main_channel.send(f'開始します。')
 
-        shuffler = PairShuffler(state.users)
-        state.pairs, state.correct_answer = shuffler.shuffle()
+        shuffler = UserPairShaffler(state.user_repo)
+        shuffler.shuffle()
 
-        for user, target in state.pairs:
-            guild = user.guild
-            channel_name = f'shuffler-{user}'
+        for user in state.user_repo.users:
+            guild = user.member.guild
+            channel_name = f'shuffler-{user.member.name}'
             
-            def search_channel(c):
-                result = c.name == channel_name.replace('#', '')
-                return result
+            # def search_channel(c):
+            #     result = c.name == channel_name.replace('#', '')
+            #     return result
 
-            channel = next(filter(search_channel, guild.channels), None)
+            channel = next(filter(lambda channel: channel.name == channel_name, guild.channels), None)
 
             if not channel:
                 role = await guild.create_role(name=channel_name)
-                await user.add_roles(role)
+                await user.member.add_roles(role)
 
                 overwrites = {
                     role: discord.PermissionOverwrite(read_messages=True),
@@ -84,8 +81,10 @@ class GameReadyPhase(GamePhase):
                 
                 channel = await guild.create_text_channel(channel_name, type=discord.ChannelType.text, overwrites=overwrites)
             
-            state.channels.append(channel)
-            await channel.send(f'あなたがなりすます対象は、{target.name}です。\nなりすます際は、このチャンネルにメッセージを送信して下さい。')
+            user.channel = channel
+            state.user_repo.update(user)
+
+            await channel.send(f'あなたがなりすます対象は、{user.spoofed.member.name}です。\nなりすます際は、このチャンネルにメッセージを送信して下さい。')
         
         await state.main_channel.send(f'議論が終わり次第、「投票」を送信して下さい。')
         state.status = STATUS.SPOOFING
@@ -95,59 +94,64 @@ class GameSpoofPhase(GamePhase):
         super().__init__()
     
     async def run(self, message):
+        user = state.user_repo.get(channel=message.channel)
+
         if message.channel == state.main_channel and message.content == '投票':
             await state.main_channel.send(f'議論を終了しました。\n投票に入ります。')
             
-            for channel in state.channels:
+            for user in state.user_repo.users:
+                channel = user.channel
                 await channel.send('本人だと思う人の名前を送信して下さい。\n\n選択肢：')
 
-                for user in state.users:
-                    await channel.send(f'「{user.name}」')
+                for _user in state.user_repo.users:
+                    await channel.send(f'「{_user.member.name}」')
             
             state.status = STATUS.VOTING
             
-        elif message.channel in state.channels:
-            filtered_pair = filter(lambda pair: pair[0] == message.author, state.pairs)
-            _, target = next(filtered_pair)
-            await state.main_channel.send(f'{target.name}\n> {message.content}')
+        elif user:
+            spoofed = user.spoofed
+            await state.main_channel.send(f'{spoofed.member.name}\n> {message.content}')
 
 class GameVotePhase(GamePhase):
     def __init__(self):
         super().__init__()
     
     async def run(self, message):        
-        if message.channel not in state.channels:
+        if not state.user_repo.get(channel=message.channel):
             return
-        
-        if next(filter(lambda vote: message.author == vote[0], state.votes), None):
+
+        user = state.user_repo.get(member=message.author)
+
+        if user.vote:
             await message.channel.send('既に投票されています。')
             return
 
-        user = next(filter(lambda user: message.content == user.name, state.users), None)
-        if not user:
+        vote = state.user_repo.get(name=message.content)
+        if not vote:
             return
 
-        state.votes.append((message.author, user))
+        user.vote = vote
+        state.user_repo.update(user)
+
         await message.channel.send('投票しました。')
 
+        # if len(state.votes) == len(state.users):
+            # await state.main_channel.send('投票が終了しました。\n\n投票内容：')
 
-        if len(state.votes) == len(state.users):
-            await state.main_channel.send('投票が終了しました。\n\n投票内容：')
+            # for user, target in state.votes:
+            #     await state.main_channel.send(f'{user.name} -> {target.name}')
 
-            for user, target in state.votes:
-                await state.main_channel.send(f'{user.name} -> {target.name}')
+            # await state.main_channel.send('スコア：')
 
-            await state.main_channel.send('スコア：')
+            # calculator = ScoreCalculator(state.users)
+            # results = calculator.calc(state.votes, state.correct_answer)
 
-            calculator = ScoreCalculator(state.users)
-            results = calculator.calc(state.votes, state.correct_answer)
-
-            for index, result in enumerate(results):
-                user, score = result
-                await state.main_channel.send(f'{index}. {user.name}: {score}')
+            # for index, result in enumerate(results):
+            #     user, score = result
+            #     await state.main_channel.send(f'{index}. {user.name}: {score}')
                  
 
-            sys.exit()
+            # sys.exit()
             
 
 class Game:
