@@ -62,11 +62,7 @@ class GameReadyPhase(GamePhase):
         for user in state.user_repo.users:
             guild = user.member.guild
             channel_name = f'shuffler-{user.member.name}'
-            
-            # def search_channel(c):
-            #     result = c.name == channel_name.replace('#', '')
-            #     return result
-
+  
             channel = next(filter(lambda channel: channel.name == channel_name, guild.channels), None)
 
             if not channel:
@@ -100,10 +96,16 @@ class GameSpoofPhase(GamePhase):
             await state.main_channel.send(f'議論を終了しました。\n投票に入ります。')
             
             for user in state.user_repo.users:
+                if user.is_answer:
+                    continue
+
                 channel = user.channel
                 await channel.send('本人だと思う人の名前を送信して下さい。\n\n選択肢：')
 
                 for _user in state.user_repo.users:
+                    if _user == user:
+                        continue
+                        
                     await channel.send(f'「{_user.member.name}」')
             
             state.status = STATUS.VOTING
@@ -122,27 +124,36 @@ class GameVotePhase(GamePhase):
 
         user = state.user_repo.get(member=message.author)
 
+        if user.is_answer:
+            await message.channel.send('答えとなる方に投票はできません。')
+            return
+
         if user.vote:
             await message.channel.send('既に投票されています。')
             return
 
-        vote = state.user_repo.get(name=message.content)
-        if not vote:
+
+        vote_user = state.user_repo.get(name=message.content)
+        if not vote_user:
             return
 
-        user.vote = vote.member
+        if vote_user.member == user.member:
+            await message.channel.send('自分に投票することはできません。')
+            return
+
+        user.vote = vote_user.member
         state.user_repo.update(user)
 
         await message.channel.send('投票しました。')
 
-        # vote_num = len(filter(lambda user: user.vote, state.user_repo.users))
         vote_num = sum(bool(user.vote) for user in state.user_repo.users)
 
-        if vote_num == len(state.user_repo.users):
+        if vote_num == len(state.user_repo.users) - 1:
             await state.main_channel.send('投票が終了しました。\n\n投票内容：')
 
             for user in state.user_repo.users:
-                await state.main_channel.send(f'{user.member.name} -> {user.vote.name}')
+                if not user.is_answer:
+                    await state.main_channel.send(f'{user.member.name} -> {user.vote.name}')
 
             await state.main_channel.send('スコア：')
 
