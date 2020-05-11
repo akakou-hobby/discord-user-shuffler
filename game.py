@@ -109,7 +109,7 @@ class GameSpoofPhase(GamePhase):
                 await channel.send('本人だと思う人の名前を送信して下さい。\n\n選択肢：')
 
                 for _user in state.user_repo.users:
-                    if _user == user:
+                    if _user == user or _user.member == user.spoofed:
                         continue
 
                     await channel.send(f'「{_user.member.name}」')
@@ -148,6 +148,11 @@ class GameVotePhase(GamePhase):
             await message.channel.send('自分に投票することはできません。')
             return
 
+        if vote_user.member == user.spoofed:
+            await message.channel.send('自分のなりすまし先に投票することはできません。')
+            return
+        
+        
         user.vote = vote_user.member
         state.user_repo.update(user)
 
