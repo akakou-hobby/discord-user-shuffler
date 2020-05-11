@@ -38,7 +38,7 @@ class PairShuffler:
         
         self.pairs.append((element, element))
 
-        return self.pairs
+        return self.pairs, element
 
 if __name__=='__main__':
     elements = ['1', '2', '3', '4', '5']

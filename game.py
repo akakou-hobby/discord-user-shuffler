@@ -1,4 +1,6 @@
 from shuffle import PairShuffler
+from vote import ScoreCalculator
+
 import discord
 
 import sys
@@ -20,6 +22,7 @@ class GameState:
 
         self.main_channel = None
         self.client = None
+        self.correct_answer = None
 
 state = GameState()
 
@@ -57,7 +60,7 @@ class GameReadyPhase(GamePhase):
         await state.main_channel.send(f'開始します。')
 
         shuffler = PairShuffler(state.users)
-        state.pairs = shuffler.shuffle()
+        state.pairs, state.correct_answer = shuffler.shuffle()
 
         for user, target in state.pairs:
             guild = user.guild
@@ -121,6 +124,9 @@ class GameVotePhase(GamePhase):
             return
 
         user = next(filter(lambda user: message.content == user.name, state.users), None)
+        if not user:
+            return
+
         state.votes.append((message.author, user))
         await message.channel.send('投票しました。')
 
@@ -130,7 +136,17 @@ class GameVotePhase(GamePhase):
 
             for user, target in state.votes:
                 await state.main_channel.send(f'{user.name} -> {target.name}')
-            
+
+            await state.main_channel.send('スコア：')
+
+            calculator = ScoreCalculator(state.users)
+            results = calculator.calc(state.votes, state.correct_answer)
+
+            for index, result in enumerate(results):
+                user, score = result
+                await state.main_channel.send(f'{index}. {user.name}: {score}')
+                 
+
             sys.exit()
             
 
